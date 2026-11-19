@@ -182,9 +182,10 @@ def run_all(work):
         # 3. behaviour, on a copy of the fixture in a path with a space
         game = os.path.join(work, f"game copy {backend}")
         shutil.copytree(os.path.join(HERE, "fixture"), game)
-        patch = os.path.join(game, "Data", "patch-Z.MPQ")
+        patch = os.path.join(game, "Data", "patch-X.MPQ")
+        old_name = os.path.join(game, "Data", "patch-Z.MPQ")
         run(backend, game, "108", "--install")
-        check(f"{tag}--install writes Data/patch-Z.MPQ", os.path.isfile(patch), True)
+        check(f"{tag}--install writes Data/patch-X.MPQ", os.path.isfile(patch), True)
         check(f"{tag}--status reports the level", run(backend, game, "--status"), (0, ">> nightlight: level 108.0 installed"))
         before = file_state(patch)
         check(f"{tag}--refresh says up to date", run(backend, game, "--refresh"), (0, ">> nightlight: level 108 (up to date)"))
@@ -199,24 +200,51 @@ def run_all(work):
                 code, output = run(backend, game, "off", "--install")
                 check(f"{tag}patch in use: removal fails with exit 1", code, 1)
             check(f"{tag}patch in use: file untouched, nothing left behind",
-                  (file_state(patch), sorted(os.listdir(os.path.join(game, "Data")))), (before, ["enUS", "patch-C.MPQ", "patch-Z.MPQ"]))
+                  (file_state(patch), sorted(os.listdir(os.path.join(game, "Data")))), (before, ["enUS", "patch-C.MPQ", "patch-X.MPQ"]))
 
         run(backend, game, "off", "--install")
         check(f"{tag}off --install removes the patch", os.path.exists(patch), False)
         check(f"{tag}--status after off", run(backend, game, "--status"), (0, ">> nightlight: not installed (Epoch's own nights)"))
         with open(patch, "w") as f:
             f.write("not ours\n")
-        check(f"{tag}foreign patch-Z.MPQ: install refused (exit 1)", run(backend, game, "108", "--install")[0], 1)
+        check(f"{tag}foreign patch-X.MPQ: install refused (exit 1)", run(backend, game, "108", "--install")[0], 1)
         with open(patch) as f:
-            check(f"{tag}foreign patch-Z.MPQ: file untouched", f.read(), "not ours\n")
+            check(f"{tag}foreign patch-X.MPQ: file untouched", f.read(), "not ours\n")
+        os.remove(patch)
+        # another mod's patch-Z.MPQ is neither read nor touched
+        with open(old_name, "w") as f:
+            f.write("another mod\n")
+        run(backend, game, "108", "--install")
+        run(backend, game, "off", "--install")
+        with open(old_name) as f:
+            check(f"{tag}foreign patch-Z.MPQ: left alone by install and off", (f.read(), os.path.exists(patch)), ("another mod\n", False))
+        os.remove(old_name)
         check(f"{tag}level above the limit rejected", run(backend, game, "111", "--out", os.path.join(work, "bad.mpq"))[0], 2)
-        # a patch from before the limit and the fog rule: --refresh rebuilds it
-        shutil.copyfile(REFERENCE, patch)
+        # a patch an earlier version wrote, under the patch-Z name it used and from before the
+        # limit and the fog rule: --status sees it, --refresh rebuilds it as patch-X and removes it
+        shutil.copyfile(REFERENCE, old_name)
+        check(f"{tag}--status sees a patch under the old name",
+              run(backend, game, "--status")[1].startswith(">> nightlight: level 108.0 installed as patch-Z.MPQ"), True)
         check(f"{tag}--refresh rebuilds a patch made by the older version",
               run(backend, game, "--refresh")[1].startswith(f">> nightlight: level 108 -> {patch}"), True)
+        check(f"{tag}--refresh removed the old patch-Z.MPQ", os.path.exists(old_name), False)
+        check(f"{tag}--status after the move", run(backend, game, "--status"), (0, ">> nightlight: level 108.0 installed"))
         for table in TABLES:
             check(f"{tag}refreshed patch {table}.dbc hash",
                   sha(mod.builtin_read(patch, f"DBFilesClient/{table}.dbc")), want["108", table])
+        # old and new side by side (an old file copied back in): --refresh drops the old one,
+        # install over an old one replaces it, off removes both
+        shutil.copyfile(REFERENCE, old_name)
+        check(f"{tag}--refresh with both names: up to date, old one removed",
+              (run(backend, game, "--refresh")[1].endswith(">> nightlight: level 108 (up to date)"), os.path.exists(old_name)), (True, False))
+        os.remove(patch)
+        shutil.copyfile(REFERENCE, old_name)
+        run(backend, game, "100", "--install")
+        check(f"{tag}--install over an old patch-Z.MPQ: new name only",
+              (run(backend, game, "--status"), os.path.exists(old_name)), ((0, ">> nightlight: level 100.0 installed"), False))
+        shutil.copyfile(REFERENCE, old_name)
+        run(backend, game, "off", "--install")
+        check(f"{tag}off removes both names", (os.path.exists(patch), os.path.exists(old_name)), (False, False))
         code, output = run(backend, game + '" 108 --install', "--status")
         check(f"{tag}quoted path ending in a backslash is explained", (code, "closing quote" in output), (2, True))
 
