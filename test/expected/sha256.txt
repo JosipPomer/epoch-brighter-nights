@@ -1,0 +1,15 @@
+# sha256 of the two tables inside the MPQ the script builds from fixture/ (the real client gives
+# identical tables as of 2026-11-19). Extract them from the built MPQ and compare.
+# Since 2026-11-19 the script keeps Epoch's fog and Epoch's hours and stops at level 110, so all
+# six hashes below are new. They were computed on Windows with the script's built-in MPQ code and
+# have not yet been reproduced on Linux.
+# "ref" is what patch-Z-level108-built-on-linux.MPQ holds: level 108 from before those changes.
+# level  sha256                                                            file
+100  24eefa64521029f6bfee8745ef1a3b0a6f8ff17304b8b3294fa73e225e54b027  DBFilesClient\LightIntBand.dbc
+100  b664cea31998e4d35ecfb5965a8520b7bee2c18c3d2242dd191b724a7f1d3f57  DBFilesClient\LightFloatBand.dbc
+108  db63974ee84f378026dd9aba3f8becac3a458c04821201b75de5a6e12171a60d  DBFilesClient\LightIntBand.dbc
+108  81088c4aad6da0b38176d1ec0ce08881f7c12f41f16093afd83c03f9e43d3ee1  DBFilesClient\LightFloatBand.dbc
+110  f79832397b84b180cf778df46f46ba74bb8f19c3c8b8265bed7033d63e656299  DBFilesClient\LightIntBand.dbc
+110  e1373c0e78a7cc144624e19eb269afb5c73ed2d9192ab7ac7c00bc7b7d7ec8b7  DBFilesClient\LightFloatBand.dbc
+ref  2a51592b2b0d96349e37f0c9b89a5dd74b0ae7706b86c1ab5c3c0c38276e46d0  DBFilesClient\LightIntBand.dbc
+ref  0576a12808e934e12740adb81d7b22110be1aee1397ea3b4f602c4d454bf5dea  DBFilesClient\LightFloatBand.dbc
