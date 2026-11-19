@@ -6,7 +6,7 @@ in a bright room.
 
 ## Download and install
 
-**[Download patch-Z.MPQ](../../raw/main/patch-Z.MPQ)**
+**[Download patch-Z.MPQ](../../raw/master/patch-Z.MPQ)**
 
 1. Close the game.
 2. Put `patch-Z.MPQ` into the `Data` folder of your Project Epoch client.
