@@ -43,18 +43,18 @@ check "MPQ header magic/size/version" "$(python3 -c 'import struct,sys; d=open(s
 # 4. behaviour, on a copy of the fixture in a path with a space
 G="$WORK/game copy"; cp -r "$HERE/fixture" "$G"
 python3 "$SCRIPT" "$G" 108 --install >/dev/null 2>&1
-check "--install writes Data/patch-Z.MPQ" "$([ -f "$G/Data/patch-Z.MPQ" ] && echo yes)" "yes"
+check "--install writes Data/patch-X.MPQ" "$([ -f "$G/Data/patch-X.MPQ" ] && echo yes)" "yes"
 check "--status reports the level" "$(python3 "$SCRIPT" "$G" --status 2>&1)" ">> nightlight: level 108.0 installed"
-B4="$(stat -c %Y%s "$G/Data/patch-Z.MPQ"; sha "$G/Data/patch-Z.MPQ")"
+B4="$(stat -c %Y%s "$G/Data/patch-X.MPQ"; sha "$G/Data/patch-X.MPQ")"
 check "--refresh says up to date" "$(python3 "$SCRIPT" "$G" --refresh 2>&1)" ">> nightlight: level 108 (up to date)"
-check "--refresh left the file alone" "$(stat -c %Y%s "$G/Data/patch-Z.MPQ"; sha "$G/Data/patch-Z.MPQ")" "$B4"
+check "--refresh left the file alone" "$(stat -c %Y%s "$G/Data/patch-X.MPQ"; sha "$G/Data/patch-X.MPQ")" "$B4"
 python3 "$SCRIPT" "$G" off --install >/dev/null 2>&1
-check "off --install removes the patch" "$([ -e "$G/Data/patch-Z.MPQ" ] && echo present || echo gone)" "gone"
+check "off --install removes the patch" "$([ -e "$G/Data/patch-X.MPQ" ] && echo present || echo gone)" "gone"
 check "--status after off" "$(python3 "$SCRIPT" "$G" --status 2>&1)" ">> nightlight: not installed (Epoch's own nights)"
-echo "not ours" > "$G/Data/patch-Z.MPQ"
+echo "not ours" > "$G/Data/patch-X.MPQ"
 python3 "$SCRIPT" "$G" 108 --install >"$WORK/foreign.log" 2>&1; RC=$?
-check "foreign patch-Z.MPQ: install refused (exit 1)" "$RC" "1"
-check "foreign patch-Z.MPQ: file untouched" "$(cat "$G/Data/patch-Z.MPQ")" "not ours"
+check "foreign patch-X.MPQ: install refused (exit 1)" "$RC" "1"
+check "foreign patch-X.MPQ: file untouched" "$(cat "$G/Data/patch-X.MPQ")" "not ours"
 python3 "$SCRIPT" "$G" 200 --out "$WORK/bad.mpq" >/dev/null 2>&1; check "level out of range rejected" "$([ $? -ne 0 ] && echo rejected)" "rejected"
 
 echo; echo "$PASS passed, $FAIL failed"

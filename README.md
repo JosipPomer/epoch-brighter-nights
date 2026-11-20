@@ -6,15 +6,15 @@ in a bright room.
 
 ## Download and install
 
-**[Download patch-Z.MPQ](../../raw/master/patch-Z.MPQ)**
+**[Download patch-X.MPQ](../../raw/master/patch-X.MPQ)**
 
 1. Close the game.
-2. Put `patch-Z.MPQ` into the `Data` folder of your Project Epoch client.
+2. Put `patch-X.MPQ` into the `Data` folder of your Project Epoch client.
 3. Start the game as usual.
 
 The same file works on Windows and on Linux (Wine); the game client is the same.
 
-To remove it, close the game and delete `Data/patch-Z.MPQ`.
+To remove it, close the game and delete `Data/patch-X.MPQ`.
 
 Built from the Project Epoch client files of 2026-11-19 (launcher content version 1.1.9).
 The patch holds a copy of two of Epoch's light tables, so when Epoch changes its lighting in an
@@ -45,7 +45,7 @@ night (66 at midnight, 89 by 06:00); this patch keeps Epoch's flat night, so for
 night level 100 is still darker than a WotLK stock server.
 
 Ready-made files for levels 75, 108 and 110 are on the [Releases](../../releases) page: unpack
-the zip and install its `patch-Z.MPQ` the same way. For any other level, use the script.
+the zip and install its `patch-X.MPQ` the same way. For any other level, use the script.
 
 ## Install with the script
 
@@ -60,7 +60,7 @@ message telling you so. Restart the client to load the patch.
 
 | Command | What it does |
 |---|---|
-| `GAME_DIR LEVEL --install` | writes `Data/patch-Z.MPQ` at that level |
+| `GAME_DIR LEVEL --install` | writes `Data/patch-X.MPQ` at that level |
 | `GAME_DIR off --install` | removes the patch |
 | `GAME_DIR --status` | says what is installed |
 | `GAME_DIR --refresh` | rebuilds at the installed level if Epoch's light tables changed; does nothing otherwise |
@@ -68,13 +68,19 @@ message telling you so. Restart the client to load the patch.
 
 Run `--refresh` after an Epoch update, or put it in your start script.
 
-The script never overwrites or removes a `patch-Z.MPQ` that it did not write. The full
+The script never overwrites or removes a `patch-X.MPQ` that it did not write. The full
 description of the blend is in the docstring at the top of `epoch-nightlight.py`.
 
 ## Limits
 
-- **The `patch-Z` name.** Other mods use the same file name (EpochCN's `core` build and Northlight
-  among them). Only one file can have it, so they conflict with this patch.
+- **Load order.** The client loads patch files in alphabetical order and later ones win.
+  `patch-X` comes after every patch Epoch ships except `patch-Y`, so it works as long as Epoch
+  keeps its light tables out of `patch-Y`; the script warns if that changes. A mod that changes
+  the same light tables under a later letter (a `patch-Z` relight, for example) overrides this
+  one.
+- **The earlier name.** Until 2026-11-19 the file was called `patch-Z.MPQ`, which other mods
+  use too. If you installed that one by hand, delete it. The script moves one it wrote itself
+  the next time you run `--install` or `--refresh`.
 - **Client layout.** The script expects the usual 3.3.5a layout with a locale folder under `Data`
   (for example `Data/enUS`). A client without one is not supported.
 - **Tested on** Windows 11 (Python 3.11) and Ubuntu 24.04 (Python 3.12), 64-bit, with an enUS
@@ -94,7 +100,7 @@ shell version of the same checks and needs `smpq`.
 
     python3 tools/build_release.py GAME_DIR --built-from "Project Epoch client files of YYYY-MM-DD"
 
-builds the release zips into `dist/` and refreshes the level 100 `patch-Z.MPQ` in the repository
+builds the release zips into `dist/` and refreshes the level 100 `patch-X.MPQ` in the repository
 root, the file the download link above points to. The same client files give byte-identical
 archives on every machine; `dist/SHA256SUMS.txt` lists the hashes. Update the "Built from" line
 above when you rebuild.
@@ -102,7 +108,7 @@ above when you rebuild.
 ## Licence
 
 The code is under the MIT licence, see `LICENSE`. That does not cover the game data: the files
-in `test/fixture` and `test/expected`, the `patch-Z.MPQ` in the repository root and the ones in
+in `test/fixture` and `test/expected`, the `patch-X.MPQ` in the repository root and the ones in
 the releases contain light
 tables that come from the World of Warcraft client and from Project Epoch's patches, and belong
 to their owners. This project is not affiliated with Blizzard Entertainment or Project Epoch.

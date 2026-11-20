@@ -5,8 +5,10 @@ Epoch's patch MPQs ship their own light tables (DBFilesClient/LightIntBand.dbc
 and LightFloatBand.dbc): night runs 20:00-06:00 with much darker ambient,
 diffuse, sky and fog colours and a closer fog than the stock 3.3.5a client.
 This script reads Epoch's tables and the stock ones from the game folder and
-writes Data/patch-Z.MPQ (loaded after Epoch's patches, so it wins) holding
-only those two tables, re-blended for a LEVEL:
+writes Data/patch-X.MPQ holding only those two tables, re-blended for a LEVEL.
+The client loads patch-X after every patch Epoch ships except patch-Y, so it
+wins as long as Epoch keeps its light tables out of patch-Y (the script warns
+when that stops being true):
 
    50   Epoch as shipped (the patch is removed, nothing is overridden)
   100   Epoch's night as bright as the stock 3.3.5a client is at midnight
@@ -33,7 +35,12 @@ The patch is derived from Epoch's tables, so it goes stale when Epoch updates
 them: --refresh rebuilds at the stored level when the source tables changed
 (cheap when nothing changed; meant for the start script).
 
-A patch-Z.MPQ that this script did not write is never overwritten or removed.
+A patch-X.MPQ that this script did not write is never overwritten or removed.
+
+Earlier versions wrote the patch as patch-Z.MPQ, a name other mods use too.
+Such a file is recognised by the marker inside it: --install and --refresh
+write patch-X.MPQ and remove it, "off" removes it. A patch-Z.MPQ from anything
+else is left alone and is not read.
 
 Needs only Python 3. MPQs are read and written with smpq (StormLib) when it
 is on PATH or SMPQ=/path/to/smpq is set (Debian/Ubuntu: apt install smpq).
@@ -49,7 +56,7 @@ Usage: epoch-nightlight.py GAME_DIR LEVEL [--out FILE] [--install]
        epoch-nightlight.py GAME_DIR --status
   LEVEL      50..110, or "off" (same as 50)
   --out      write the MPQ to FILE instead of the game folder
-  --install  write GAME_DIR/Data/patch-Z.MPQ (the client must be restarted)
+  --install  write GAME_DIR/Data/patch-X.MPQ (the client must be restarted)
 Exit codes: 0 ok, 1 error.
 """
 
@@ -65,7 +72,8 @@ import sys
 import tempfile
 import zlib
 
-PATCH_NAME = "patch-Z.MPQ"
+PATCH_NAME = "patch-X.MPQ"
+OLD_PATCH_NAME = "patch-Z.MPQ"            # what earlier versions wrote; moved over when found
 MARKER = "epoch-nightlight.json"          # inside the MPQ: proves the patch is ours
 TABLES = ("LightIntBand", "LightFloatBand")
 DAY = 2880                                 # band times are half-minutes
@@ -137,8 +145,10 @@ def load_sources(game):
     loc, name = locale_dir(data)
     stock_archives = [find_ci(loc, f"locale-{name}.mpq"), find_ci(loc, f"patch-{name}.mpq")]
     stock_archives += [find_ci(loc, f"patch-{name}-{s}.mpq") for s in "23"]
-    # Everything a custom realm adds: Data/patch-4..y (patch-Z is ours).
-    epoch_archives = [find_ci(data, f"patch-{s}.mpq") for s in SUFFIXES[2:-1]]
+    # Everything a custom realm adds: Data/patch-4..y, without our own patch-X.
+    # patch-Z is left out: it was ours before, and other mods use the name.
+    own = PATCH_NAME[len("patch-")].lower()
+    epoch_archives = [find_ci(data, f"patch-{s}.mpq") for s in SUFFIXES[2:-1] if s != own]
     stock, epoch, origin = {}, {}, {}
     for table in TABLES + ("Light",):
         path = f"DBFilesClient/{table}.dbc"
@@ -560,6 +570,19 @@ def installed_patch(game):
     return find_ci(data, PATCH_NAME) or os.path.join(data, PATCH_NAME)
 
 
+def old_patch(game):
+    """Data/patch-Z.MPQ when an earlier version of this script wrote it, else None."""
+    path = find_ci(os.path.join(game, "Data"), OLD_PATCH_NAME)
+    return path if path and read_marker(path) else None
+
+
+def remove(path):
+    try:
+        os.remove(path)
+    except PermissionError as e:
+        sys.exit(f"cannot remove {path} ({e.strerror}){GAME_OPEN}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Set how dark Project Epoch's nights are (see the docstring).")
     ap.add_argument("game")
@@ -575,20 +598,25 @@ def main():
     target = installed_patch(args.game)
     marker = read_marker(target)
     foreign = os.path.isfile(target) and marker is None
+    old = old_patch(args.game)
+    old_marker = read_marker(old) if old else None
 
     if args.status:
         if foreign:
             print(f">> nightlight: {target} exists but was not written by this script")
         elif marker:
             print(f">> nightlight: level {marker['level']} installed")
+        elif old:
+            print(f">> nightlight: level {old_marker['level']} installed as {OLD_PATCH_NAME}, the name earlier "
+                  f"versions used; --refresh moves it to {PATCH_NAME}")
         else:
             print(">> nightlight: not installed (Epoch's own nights)")
         return 0
 
     if args.refresh:
-        if not marker:
+        if not marker and not old:
             return 0
-        level = min(marker["level"], MAX_LEVEL)      # a patch from before the limit comes down to it
+        level = min((marker or old_marker)["level"], MAX_LEVEL)      # a patch from before the limit comes down to it
     elif args.level is None:
         ap.error("LEVEL is required (or --refresh / --status)")
     else:
@@ -602,19 +630,23 @@ def main():
         sys.exit(f"{target} was not written by this script; not touching it")
 
     if level == 50 and not args.out:
-        if marker:
-            try:
-                os.remove(target)
-            except PermissionError as e:
-                sys.exit(f"cannot remove {target} ({e.strerror}){GAME_OPEN}")
-            print(f">> nightlight: removed {target} (Epoch's own nights)")
-        else:
+        for path in ([target] if marker else []) + ([old] if old else []):
+            remove(path)
+            print(f">> nightlight: removed {path} (Epoch's own nights)")
+        if not marker and not old:
             print(">> nightlight: nothing installed, nothing to do")
         return 0
 
     epoch, stock, origin = load_sources(args.game)
     digest = source_hash(epoch, stock)
-    if args.refresh and marker.get("source") == digest:
+    late = sorted({os.path.basename(p) for p in origin.values() if p and os.path.basename(p).lower() > PATCH_NAME.lower()})
+    if late:
+        print(f">> nightlight: WARNING: Epoch's light tables are in {', '.join(late)}, which the client loads "
+              f"after {PATCH_NAME}: this patch will have no effect")
+    if args.refresh and marker and marker.get("source") == digest:
+        if old:
+            remove(old)
+            print(f">> nightlight: removed {old} (the name earlier versions used)")
         print(f">> nightlight: level {level:g} (up to date)")
         return 0
 
@@ -629,6 +661,9 @@ def main():
     print(f"   midnight ambient brightness of the {len(dark)} profiles Epoch darkened (0-255): "
           f"Epoch {mean(0):.0f}, stock {mean(1):.0f}, this patch {mean(2):.0f}, noon {mean(3):.0f}")
     if out == target:
+        if old:
+            remove(old)
+            print(f"   removed {old} (the name earlier versions used)")
         print("   restart the client to load it")
     return 0
 
